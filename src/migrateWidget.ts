@@ -8,6 +8,7 @@ import { migrateQuickFilter } from "./migrateQuickFilter";
 import { migrateDrillthrough } from "./migrateDrillthrough";
 import { migrateTextEditor } from "./migrateTextEditor";
 import { _getLegacyWidgetPluginKey } from "./_getLegacyWidgetPluginKey";
+import { _migrateUnsupportedWidget } from "./_migrateUnsupportedWidget";
 
 /**
  * Returns the converted widget state, ready to be used in ActiveUI 5.
@@ -15,31 +16,23 @@ import { _getLegacyWidgetPluginKey } from "./_getLegacyWidgetPluginKey";
 export function migrateWidget(
   legacyWidgetState: LegacyWidgetState,
   servers: { [serverKey: string]: { dataModel: DataModel; url: string } }
-): AWidgetState<"serialized"> {
+): [AWidgetState<"serialized">, boolean] {
   const widgetPluginKey = _getLegacyWidgetPluginKey(legacyWidgetState);
   switch (widgetPluginKey) {
     case "chart":
-      return migrateChart(legacyWidgetState, servers);
+      return [migrateChart(legacyWidgetState, servers), true];
     case "tabular-view":
     case "pivot-table":
-      return migrateTable(legacyWidgetState, servers);
+      return [migrateTable(legacyWidgetState, servers), true];
     case "featured-values":
-      return migrateKpi(legacyWidgetState, servers);
+      return [migrateKpi(legacyWidgetState, servers), true];
     case "quick-filter":
-      return migrateQuickFilter(legacyWidgetState, servers);
+      return [migrateQuickFilter(legacyWidgetState, servers), true];
     case "drillthrough":
-      return migrateDrillthrough(legacyWidgetState, servers);
+      return [migrateDrillthrough(legacyWidgetState, servers), true];
     case "rich-text-editor":
-      return migrateTextEditor(legacyWidgetState);
+      return [migrateTextEditor(legacyWidgetState), true];
     default:
-      // eslint-disable-next-line no-console
-      console.warn(
-        `Unsupported widgetKey: "${widgetPluginKey}". The widget ("${legacyWidgetState.name}") will be copied as is. It will most likely not work correctly in ActiveUI 5. Alternatively, you can remove all widgets of this type by using the --remove-widgets option in the CLI.`
-      );
-      return {
-        ...legacyWidgetState?.value?.body,
-        name: legacyWidgetState?.name,
-        widgetKey: widgetPluginKey,
-      };
+      return [_migrateUnsupportedWidget(legacyWidgetState), false];
   }
 }

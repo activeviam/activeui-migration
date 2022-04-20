@@ -1,6 +1,7 @@
 import _omit from "lodash/omit";
 import _range from "lodash/range";
 import _reduce from "lodash/reduce";
+import _isEmpty from "lodash/isEmpty";
 
 import {
   DashboardState,
@@ -21,6 +22,7 @@ import type {
 import { isLegacyLayoutLeaf } from "./isLegacyLayoutLeaf";
 import { _migrateContextValues } from "./_migrateContextValues";
 import { _getLegacyWidgetPluginKey } from "./_getLegacyWidgetPluginKey";
+import { _migrateUnsupportedWidget } from "./_migrateUnsupportedWidget";
 
 /**
  * Returns the layout path to the leaf uniquely identified by `leafKey`, or `undefined` if no leaf has this key.
@@ -53,16 +55,26 @@ function findPathToLeaf(layout: Layout, leafKey: string): number[] | undefined {
  *
  * Widgets with keys in `keysOfWidgetPluginsToRemove` are not migrated: they are removed from the output ActiveUI 5 dashboard, and the layout is adapted so that siblings take the remaining space.
  */
-export function migrateDashboard(
-  legacyDashboardState: LegacyDashboardState,
-  servers: { [serverKey: string]: { dataModel: DataModel; url: string } },
-  keysOfWidgetPluginsToRemove?: string[]
-): DashboardState<"serialized"> {
+export function migrateDashboard({
+  legacyDashboardState,
+  servers,
+  keysOfWidgetPluginsToRemove,
+  dashboardId,
+}: {
+  legacyDashboardState: LegacyDashboardState;
+  servers: { [serverKey: string]: { dataModel: DataModel; url: string } };
+  keysOfWidgetPluginsToRemove?: string[];
+  dashboardId?: string;
+}): DashboardState<"serialized"> {
   const pages: { [pageKey: string]: DashboardPageState<"serialized"> } = {};
   const body = legacyDashboardState.value.body;
 
   const keysOfLeavesToRemove: {
     [pageKey: string]: string[];
+  } = {};
+
+  const unsupportedWidgets: {
+    [pageKey: string]: { [widgetKey: string]: string[] };
   } = {};
 
   body.pages.forEach((legacyPage: LegacyDashboardPage, index: number) => {
@@ -77,7 +89,21 @@ export function migrateDashboard(
           dashboardLeafKey,
         ];
       } else {
-        content[dashboardLeafKey] = migrateWidget(widget.bookmark, servers);
+        const [migratedWidget, isSupportedByDefaultInActiveUI5] = migrateWidget(
+          widget.bookmark,
+          servers
+        );
+        content[dashboardLeafKey] = migratedWidget;
+        if (!isSupportedByDefaultInActiveUI5) {
+          const widgetPluginKey = _getLegacyWidgetPluginKey(widget.bookmark);
+          unsupportedWidgets[pageKey] = {
+            ...(unsupportedWidgets[pageKey] ?? {}),
+            [widgetPluginKey]: [
+              ...(unsupportedWidgets[pageKey]?.[widgetPluginKey] ?? []),
+              widget.bookmark.name,
+            ],
+          };
+        }
       }
     });
 
@@ -144,5 +170,21 @@ export function migrateDashboard(
     deserializedDashboard
   );
 
-  return serializeDashboardState(dashboardWithWidgetsRemoved);
+  const serializedDashboard = serializeDashboardState(
+    dashboardWithWidgetsRemoved
+  );
+
+  if (!_isEmpty(unsupportedWidgets)) {
+    console.warn(
+      `Found unsupported widgets while migrating dashboard "${
+        legacyDashboardState.name
+      }"${dashboardId ? ` (with id ${dashboardId})` : ""}:\n${JSON.stringify(
+        unsupportedWidgets,
+        null,
+        2
+      )}.\nThese widgets will be copied as is and will most likely not work in ActiveUI 5.\nAlternatively, you can use the --remove-widgets CLI option to remove them.`
+    );
+  }
+
+  return serializedDashboard;
 }

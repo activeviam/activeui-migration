@@ -8,6 +8,12 @@ import { servers } from "./__test_resources__/servers";
 import { ContentRecord } from "@activeviam/activeui-sdk";
 
 describe("migrateUIFolder", () => {
+  beforeEach(() => {
+    // Do not clutter the test output with expected warnings.
+    // The tests that explicitly check for warnings can still spy on console.warn.
+    console.warn = jest.fn();
+  });
+
   it("returns a valid ActiveUI5 /ui folder on a small input", () => {
     const migratedUIFolder = migrateUIFolder(smallLegacyUIFolder, servers);
     expect(migratedUIFolder).toMatchSnapshot();
@@ -68,6 +74,34 @@ describe("migrateUIFolder", () => {
         ],
         "direction": "column",
       }
+    `);
+  });
+
+  it("warns when trying to migrate widgets that have no core equivalent in ActiveUI 5 and will not be supported by default", () => {
+    const consoleWarnSpy = jest.spyOn(console, "warn");
+    migrateUIFolder(legacyUIFolder, servers);
+    // There should be two warnings:
+    // - One when trying to migrate an unsupported saved widget
+    // - One when trying to migrate a saved dashboard which includes an unsupported widget.
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    expect(consoleWarnSpy.mock.calls).toMatchInlineSnapshot(`
+      Array [
+        Array [
+          "Unsupported widgetKey: \\"filters\\". The widget \\"Page filters\\" (with id 0xb) will be copied as is and will most likely not work correctly in ActiveUI 5. Alternatively, you can remove all widgets of this type by using the --remove-widgets option in the CLI.",
+        ],
+        Array [
+          "Found unsupported widgets while migrating dashboard \\"1 page, 4 widgets\\" (with id eef):
+      {
+        \\"p-0\\": {
+          \\"filters\\": [
+            \\"Page filters\\"
+          ]
+        }
+      }.
+      These widgets will be copied as is and will most likely not work in ActiveUI 5.
+      Alternatively, you can use the --remove-widgets CLI option to remove them.",
+        ],
+      ]
     `);
   });
 });

@@ -7,8 +7,17 @@ import { LegacyDashboardState } from "./migration.types";
 import { servers } from "./__test_resources__/servers";
 
 describe("migrateDashboard", () => {
+  beforeEach(() => {
+    // Do not clutter the test output with expected warnings.
+    // The tests that explicitly check for warnings can still spy on console.warn.
+    console.warn = jest.fn();
+  });
+
   it("turns the pages content from arrays into maps", () => {
-    const dashboard = migrateDashboard(legacyDashboard, servers);
+    const dashboard = migrateDashboard({
+      legacyDashboardState: legacyDashboard,
+      servers,
+    });
     expect(dashboard.pages["p-0"].content).toMatchInlineSnapshot(`
       Object {
         "1": Object {
@@ -137,7 +146,10 @@ describe("migrateDashboard", () => {
   });
 
   it("flattens the page layouts", () => {
-    const dashboard = migrateDashboard(legacyDashboard, servers);
+    const dashboard = migrateDashboard({
+      legacyDashboardState: legacyDashboard,
+      servers,
+    });
     expect(dashboard.pages["p-0"].layout).toMatchInlineSnapshot(`
       Object {
         "children": Array [
@@ -171,7 +183,10 @@ describe("migrateDashboard", () => {
 
   it("migrates dashboard context values", () => {
     // Due to the flattening, the context values from the first cube that are also defined in the second cube are overriden.
-    const dashboard = migrateDashboard(legacyDashboard, servers);
+    const dashboard = migrateDashboard({
+      legacyDashboardState: legacyDashboard,
+      servers,
+    });
     expect(dashboard.queryContext).toMatchInlineSnapshot(`
       Array [
         Object {
@@ -191,7 +206,10 @@ describe("migrateDashboard", () => {
   });
 
   it("migrates page context values", () => {
-    const dashboard = migrateDashboard(legacyDashboard, servers);
+    const dashboard = migrateDashboard({
+      legacyDashboardState: legacyDashboard,
+      servers,
+    });
     expect(_mapValues(dashboard.pages, ({ queryContext }) => queryContext))
       .toMatchInlineSnapshot(`
       Object {
@@ -228,7 +246,10 @@ describe("migrateDashboard", () => {
         },
       },
     } as unknown as LegacyDashboardState;
-    const emptyDashboard = migrateDashboard(legacyEmptyDashboard, servers);
+    const emptyDashboard = migrateDashboard({
+      legacyDashboardState: legacyEmptyDashboard,
+      servers,
+    });
     expect(emptyDashboard).toMatchInlineSnapshot(`
       Object {
         "filters": Array [],
@@ -257,11 +278,11 @@ describe("migrateDashboard", () => {
   it("removes the specified widget keys, and adapts the layout", () => {
     const keysOfWidgetPluginsToRemove = ["filters"];
 
-    const dashboard = migrateDashboard(
-      legacyDashboard,
+    const dashboard = migrateDashboard({
+      legacyDashboardState: legacyDashboard,
       servers,
-      keysOfWidgetPluginsToRemove
-    );
+      keysOfWidgetPluginsToRemove,
+    });
 
     const { content, layout } = dashboard.pages["p-0"];
     const widgetPluginKeys = _map(content, ({ widgetKey }) => widgetKey);
@@ -286,6 +307,28 @@ describe("migrateDashboard", () => {
         ],
         "direction": "column",
       }
+    `);
+  });
+
+  it("warns in the console if some widgets in the migrated dashboard have no core equivalent in ActiveUI 5 and will not be supported by default", () => {
+    const consoleWarnSpy = jest.spyOn(console, "warn");
+    migrateDashboard({
+      legacyDashboardState: legacyDashboard,
+      servers,
+      dashboardId: "eef",
+    });
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+    expect(consoleWarnSpy.mock.calls[0][0]).toMatchInlineSnapshot(`
+      "Found unsupported widgets while migrating dashboard \\"1 page, 4 widgets\\" (with id eef):
+      {
+        \\"p-0\\": {
+          \\"filters\\": [
+            \\"Page filters\\"
+          ]
+        }
+      }.
+      These widgets will be copied as is and will most likely not work in ActiveUI 5.
+      Alternatively, you can use the --remove-widgets CLI option to remove them."
     `);
   });
 });

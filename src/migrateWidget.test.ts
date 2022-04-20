@@ -30,7 +30,10 @@ describe("migrateWidget", () => {
       writable: true,
     };
 
-    expect(migrateWidget(legacyWidgetState, servers)).toMatchInlineSnapshot(`
+    const [migratedWidgetState, isSupportedByDefaultInActiveUI5] =
+      migrateWidget(legacyWidgetState, servers);
+
+    expect(migratedWidgetState).toMatchInlineSnapshot(`
       Object {
         "filters": Array [],
         "mapping": Object {
@@ -58,33 +61,27 @@ describe("migrateWidget", () => {
         "widgetKey": "plotly-line-chart",
       }
     `);
+    expect(isSupportedByDefaultInActiveUI5).toBe(true);
   });
 
-  it("warns if the widget has no core equivalent in ActiveUI 5", () => {
-    const warn = console.warn;
-    console.warn = jest.fn();
-    try {
-      const legacyWidgetState: LegacyWidgetState = {
-        name: "Untitled page context values",
-        type: "container",
-        value: {
-          containerKey: "context-values",
-          body: {},
-        },
-        writable: true,
-      };
-      expect(migrateWidget(legacyWidgetState, servers)).toMatchInlineSnapshot(`
+  it("returns a boolean indicating whether the migrated widget has a core equivalent in ActiveUI 5 and will be supported by default", () => {
+    const legacyWidgetState: LegacyWidgetState = {
+      name: "Untitled page context values",
+      type: "container",
+      value: {
+        containerKey: "context-values",
+        body: {},
+      },
+      writable: true,
+    };
+    const [migratedWidgetState, isSupportedByDefaultInActiveUI5] =
+      migrateWidget(legacyWidgetState, servers);
+    expect(migratedWidgetState).toMatchInlineSnapshot(`
         Object {
           "name": "Untitled page context values",
           "widgetKey": "context-values",
         }
       `);
-      expect(console.warn).toHaveBeenCalledTimes(1);
-      expect(console.warn).toHaveBeenCalledWith(
-        `Unsupported widgetKey: "context-values". The widget ("Untitled page context values") will be copied as is. It will most likely not work correctly in ActiveUI 5. Alternatively, you can remove all widgets of this type by using the --remove-widgets option in the CLI.`
-      );
-    } finally {
-      console.warn = warn;
-    }
+    expect(isSupportedByDefaultInActiveUI5).toBe(false);
   });
 });
