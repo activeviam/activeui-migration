@@ -170,7 +170,7 @@ const accumulateStructure = ({
             },
           },
         };
-      } else {
+      } else if (folders[id] !== undefined) {
         accumulateStructure({
           legacyUIFolder,
           migratedUIFolder,
@@ -180,6 +180,10 @@ const accumulateStructure = ({
           folders,
           path: [...path, id],
         });
+      } else {
+        console.error(
+          `The 'structure' folder contains an object of id '${id}' that could not be identified (missing or corrupted entry in 'content'). Children of that object will be ignored.`
+        );
       }
     }
   }
@@ -291,6 +295,10 @@ export function migrateUIFolder(
           );
         }
       }
+    } else {
+      console.error(
+        `File '${id}' in the 'content' is corrupt: it has no content. Remove the file or fix its content.`
+      );
     }
   }
 
