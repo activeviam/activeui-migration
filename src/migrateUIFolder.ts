@@ -14,6 +14,7 @@ import { migrateWidget } from "./migrateWidget";
 import { migrateFilter } from "./migrateFilter";
 import { migrateSettingsFolder } from "./migrateSettingsFolder";
 import { _getLegacyWidgetPluginKey } from "./_getLegacyWidgetPluginKey";
+import { migrateCalculatedMeasures } from "./migrateCalculatedMeasures";
 
 const _getFolder = (
   record: ContentRecord | undefined,
@@ -192,11 +193,12 @@ const accumulateStructure = ({
  * - for a matching saved ActiveUI 4 widget, no ActiveUI 5 file is created.
  * - for a saved ActiveUI 4 dashboard including a matching widget, the widget is removed from the output ActiveUI 5 dashboard, and the layout is adapted so that siblings take the remaining space.
  */
-export function migrateUIFolder(
+export async function migrateUIFolder(
   legacyUIFolder: ContentRecord,
   servers: { [serverKey: string]: { dataModel: DataModel; url: string } },
-  keysOfWidgetPluginsToRemove?: string[]
-): ContentRecord {
+  keysOfWidgetPluginsToRemove?: string[],
+  legacyPivotFolder?: ContentRecord
+): Promise<ContentRecord> {
   const migratedUIFolder: ContentRecord = _cloneDeep(emptyUIFolder);
 
   const dashboards: { [dashboardId: string]: any } = {};
@@ -207,6 +209,7 @@ export function migrateUIFolder(
       metaData: { name: string };
     };
   } = {};
+
   const folders: { [folderId: string]: { name: string } } = {};
 
   const legacyContent =
@@ -305,6 +308,13 @@ export function migrateUIFolder(
 
   migratedUIFolder.children = {
     ...migratedUIFolder.children,
+    ...(legacyPivotFolder
+      ? {
+          calculated_measures: await migrateCalculatedMeasures(
+            legacyPivotFolder
+          ),
+        }
+      : {}),
     ...migrateSettingsFolder(legacyUIFolder.children?.settings),
   };
 

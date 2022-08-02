@@ -7,6 +7,7 @@ import { legacyUIFolder } from "./__test_resources__/legacyUIFolder";
 import { servers } from "./__test_resources__/servers";
 import { ContentRecord } from "@activeviam/activeui-sdk";
 import { LegacyDashboardState } from "./migration.types";
+import { smallLegacyPivotFolder } from "./__test_resources__/smallLegacyPivotFolder";
 
 /**
  *  Returns whether `contentRecord` has a descendant with the id `recordId`.
@@ -17,20 +18,46 @@ const hasRecord = (contentRecord: ContentRecord, recordId: string): boolean =>
     (child, childId) => childId === recordId || hasRecord(child, recordId)
   );
 
+jest.mock(`./generateId`, () => {
+  let counter = 0;
+  return {
+    generateId: jest.fn(() => {
+      const id = `00${counter}`;
+      counter += 1;
+
+      return id;
+    }),
+  };
+});
+
 describe("migrateUIFolder", () => {
-  it("returns a valid ActiveUI5 /ui folder on a small input", () => {
-    const migratedUIFolder = migrateUIFolder(smallLegacyUIFolder, servers);
+  it("returns a valid ActiveUI5 /ui folder on a small input", async () => {
+    const migratedUIFolder = await migrateUIFolder(
+      smallLegacyUIFolder,
+      servers
+    );
     expect(migratedUIFolder).toMatchSnapshot();
   });
 
-  it("returns a valid ActiveUI5 /ui folder on a real life input", () => {
-    const migratedUIFolder = migrateUIFolder(legacyUIFolder, servers);
+  it("returns a valid ActiveUI5 /ui folder on a real life input", async () => {
+    const migratedUIFolder = await migrateUIFolder(legacyUIFolder, servers);
     expect(migratedUIFolder).toMatchSnapshot();
   });
 
-  it("removes the specified widget plugins from the widget bookmarks themselves, and from the content of the dashboard bookmarks", () => {
+  it("returns a valid ActiveUI5 /ui folder that includes calculated measures when the input includes a pivotFolder", async () => {
+    const migratedUIFolder = await migrateUIFolder(
+      legacyUIFolder,
+      servers,
+      undefined,
+      smallLegacyPivotFolder
+    );
+
+    expect(migratedUIFolder).toMatchSnapshot();
+  });
+
+  it("removes the specified widget plugins from the widget bookmarks themselves, and from the content of the dashboard bookmarks", async () => {
     const keysOfWidgetPluginsToRemove = ["filters"];
-    const migratedUIFolder = migrateUIFolder(
+    const migratedUIFolder = await migrateUIFolder(
       legacyUIFolder,
       servers,
       keysOfWidgetPluginsToRemove

@@ -30,26 +30,42 @@ yargs
         demandOption: false,
         desc: "A list of keys of ActiveUI 4 widget plugins that should be removed during the migration.",
       });
+      args.option("pivot-input-path", {
+        alias: "p",
+        type: "string",
+        demandOption: false,
+        desc: "The path to the JSON export of the /pivot folder on the content server.",
+      });
     },
     async ({
       inputPath,
       outputPath,
       serversPath,
       removeWidgets: keysOfWidgetPluginsToRemove,
+      pivotInputPath,
     }: {
       inputPath: string;
       outputPath: string;
       serversPath: string;
       removeWidgets: string[];
+      pivotInputPath?: string;
     }) => {
       const legacyUIFolder = await fs.readJSON(inputPath);
+      const legacyPivotFolder = pivotInputPath
+        ? await fs.readJSON(pivotInputPath)
+        : undefined;
       const servers = await fs.readJSON(serversPath);
-      const migratedUIFolder = migrateUIFolder(
+
+      const migratedUIFolder = await migrateUIFolder(
         legacyUIFolder,
         servers,
-        keysOfWidgetPluginsToRemove
+        keysOfWidgetPluginsToRemove,
+        legacyPivotFolder
       );
-      await fs.writeJSON(outputPath, migratedUIFolder, { spaces: 2 });
+
+      await fs.writeJSON(outputPath, migratedUIFolder, {
+        spaces: 2,
+      });
       // FIXME Rely on yargs instead of having to call process.exit manually.
       // See https://support.activeviam.com/jira/browse/UI-7198
       process.exit(0);

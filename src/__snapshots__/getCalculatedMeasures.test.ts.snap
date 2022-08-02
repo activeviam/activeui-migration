@@ -1,0 +1,32 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`getCalculatedMeasures returns the parsed calculated measure objects 1`] = `
+Array [
+  Object {
+    "expression": "IIf(IsEmpty(([Currency].[Currency].[ALL].[AllMember], [Measures].[pnl.FOREX])), null, [Measures].[pnl.FOREX] / ([Currency].[Currency].[ALL].[AllMember], [Measures].[pnl.FOREX]))",
+    "formatStringExpression": "\\"#,###.##%\\"",
+    "isDirectory": false,
+    "owners": Array [
+      "admin",
+    ],
+    "readers": Array [
+      "admin",
+    ],
+    "uniqueName": "[Measures].[second calculated measure]",
+    "xmlns": "http://www.quartetfs.com",
+  },
+  Object {
+    "expression": "Count(Descendants([CounterParty].[CounterParty].CurrentMember, [CounterParty].[CounterParty].[CounterPartyGroup]), EXCLUDEEMPTY)",
+    "formatStringExpression": "\\"#,###.##\\"",
+    "isDirectory": false,
+    "owners": Array [
+      "admin",
+    ],
+    "readers": Array [
+      "admin",
+    ],
+    "uniqueName": "[Measures].[first calculated measure]",
+    "xmlns": "http://www.quartetfs.com",
+  },
+]
+`;
